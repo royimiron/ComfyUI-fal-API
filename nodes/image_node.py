@@ -2307,6 +2307,97 @@ class Flux2FlexEdit:
             return ApiHandler.handle_image_generation_error(model_name, e)
 
 
+class HunyuanImageV3InstructEdit:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt": ("STRING", {"default": "", "multiline": True}),
+                "image": ("IMAGE",),
+            },
+            "optional": {
+                "image_size": (
+                    [
+                        "auto",
+                        "square_hd",
+                        "square",
+                        "portrait_4_3",
+                        "portrait_16_9",
+                        "landscape_4_3",
+                        "landscape_16_9",
+                        "custom",
+                    ],
+                    {"default": "auto"},
+                ),
+                "width": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 16}),
+                "height": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 16}),
+                "num_images": ("INT", {"default": 1, "min": 1, "max": 4}),
+                "guidance_scale": (
+                    "FLOAT",
+                    {"default": 3.5, "min": 1.0, "max": 20.0, "step": 0.1},
+                ),
+                "output_format": (["png", "jpeg"], {"default": "png"}),
+                "sync_mode": ("BOOLEAN", {"default": False}),
+                "enable_safety_checker": ("BOOLEAN", {"default": True}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2**32 - 1}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "edit_image"
+    CATEGORY = "FAL/Image"
+
+    def edit_image(
+        self,
+        prompt,
+        image,
+        image_size="auto",
+        width=1024,
+        height=1024,
+        num_images=1,
+        guidance_scale=3.5,
+        output_format="png",
+        sync_mode=False,
+        enable_safety_checker=True,
+        seed=-1,
+    ):
+        model_name = "Hunyuan Image V3 Instruct Edit"
+        image_urls = ImageUtils.prepare_images(image)
+        if not image_urls:
+            print(f"Error: Failed to upload image(s) for {model_name}")
+            return ResultProcessor.create_blank_image()
+
+        # API supports max 2 reference images
+        if len(image_urls) > 2:
+            image_urls = image_urls[:2]
+
+        arguments = {
+            "prompt": prompt,
+            "image_urls": image_urls,
+            "num_images": num_images,
+            "guidance_scale": guidance_scale,
+            "output_format": output_format,
+            "sync_mode": sync_mode,
+            "enable_safety_checker": enable_safety_checker,
+        }
+
+        if image_size == "custom":
+            arguments["image_size"] = {"width": width, "height": height}
+        else:
+            arguments["image_size"] = image_size
+
+        if seed != -1:
+            arguments["seed"] = seed
+
+        try:
+            result = ApiHandler.submit_and_get_result(
+                "fal-ai/hunyuan-image/v3/instruct/edit", arguments
+            )
+            return ResultProcessor.process_image_result(result)
+        except Exception as e:
+            return ApiHandler.handle_image_generation_error(model_name, e)
+
+
 # Node class mappings
 NODE_CLASS_MAPPINGS = {
     "Ideogramv3_fal": Ideogramv3,
@@ -2337,6 +2428,7 @@ NODE_CLASS_MAPPINGS = {
     "GPTImage15Edit_fal": GPTImage15Edit,
     "GPTImage15_fal": GPTImage15,
     "Flux2FlexEdit_fal": Flux2FlexEdit,
+    "HunyuanImageV3InstructEdit_fal": HunyuanImageV3InstructEdit,
 }
 
 
@@ -2370,4 +2462,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GPTImage15Edit_fal": "GPT-Image 1.5 Edit (fal)",
     "GPTImage15_fal": "GPT-Image 1.5 (fal)",
     "Flux2FlexEdit_fal": "Flux 2 Flex Edit (fal)",
+    "HunyuanImageV3InstructEdit_fal": "Hunyuan Image V3 Instruct Edit (fal)",
 }
